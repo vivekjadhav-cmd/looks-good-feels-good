@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#FAEEDA"/>
+  <text x="256" y="200" text-anchor="middle" font-family="Georgia, serif" font-size="72" font-weight="700" fill="#633806">looks</text>
+  <text x="256" y="275" text-anchor="middle" font-family="Georgia, serif" font-size="72" font-weight="700" fill="#854F0B">good</text>
+  <circle cx="256" cy="370" r="40" fill="#E1F5EE"/>
+  <text x="256" y="385" text-anchor="middle" font-size="36" fill="#085041">✨</text>
+</svg>
