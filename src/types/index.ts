@@ -122,10 +122,14 @@ export interface Outfit {
   weather_temp: number | null;
   weather_condition: string | null;
   styling_notes: string | null;
+  color_analysis: string | null;
+  hair_suggestion: string | null;
   makeup_tip: string | null;
   accessory_tip: string | null;
   vibe_line: string | null;
   weather_note: string | null;
+  height_fit_tips: string | null;
+  outfit_image_url: string | null;
   outfit_date: string;
   created_at: string;
 }
