@@ -17,7 +17,7 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 });
 
-const CLAUDE_MODEL = "claude-haiku-4-5-20251001";
+const CLAUDE_MODEL = "claude-haiku-4-5-20251001"; 	
 
 // ──────────────────────────────────────
 // 1. Profile photo analysis (Claude Vision)
@@ -196,7 +196,7 @@ PHYSICAL PROFILE (estimated from profile photo):
 
   const response = await anthropic.messages.create({
     model: CLAUDE_MODEL,
-    max_tokens: 2000,
+    max_tokens: 4000,
     messages: [
       {
         role: "user",
