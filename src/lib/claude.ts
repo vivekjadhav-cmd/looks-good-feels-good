@@ -7,6 +7,7 @@ import {
   Profile,
   WeatherData,
 } from "@/types";
+import { FASHION_KNOWLEDGE_BASE } from "@/lib/fashion-knowledge";
 
 // ──────────────────────────────────────
 // Claude — text analysis & styling logic
@@ -128,7 +129,25 @@ Return valid JSON only. No other text.`,
 }
 
 // ──────────────────────────────────────
+// Styling angles — rotated randomly each
+// request to force variety
+// ──────────────────────────────────────
+
+const STYLING_ANGLES = [
+  "Lead with COLOR — pick the most vibrant or interesting colored item first, then build around it. Apply the 3-color rule.",
+  "Lead with TEXTURE — pick an item with interesting fabric (knit, denim, satin, linen) and contrast it with something smooth. Reference the fabric mixing principle.",
+  "Lead with a STATEMENT PIECE — find the boldest item and make it the center. Style like a Reformation/Cool Girl lookbook.",
+  "Lead with SILHOUETTE — think proportion play. Go for contrast: fitted top + loose bottom, or oversized top + slim bottom. Reference the rule of thirds.",
+  "Lead with PATTERN — if there's a patterned piece, build the outfit around it. Use the 3-color rule with the pattern's colors.",
+  "Lead with LAYERING — even in Singapore's heat, creative Korean-style layering works. Open shirt over tank, vest over tee. Add depth.",
+  "Lead with the BOTTOM — start with the most interesting bottom and build up. Apply Zara aesthetic: take something structured and dress it down.",
+  "Lead with UNEXPECTED PAIRINGS — combine items the user never wears together. Think COS minimalism meets streetwear energy.",
+];
+
+// ──────────────────────────────────────
 // 3. Outfit generation (Claude text)
+// Uses fashion knowledge base + variety
+// logic + recent outfit avoidance
 // ──────────────────────────────────────
 
 export async function generateOutfit(
@@ -136,7 +155,8 @@ export async function generateOutfit(
   mood: string,
   occasion: string,
   weather: WeatherData,
-  profile: Profile
+  profile: Profile,
+  recentOutfitItemIds: string[][] = []
 ): Promise<AIOutfitResult> {
   const wardrobeSummary = wardrobe.map((item) => ({
     id: item.id,
@@ -164,13 +184,31 @@ PHYSICAL PROFILE (estimated from profile photo):
       ? `\nSTYLE RULES/RESTRICTIONS:\n${profile.style_rules.map((r) => `- ${r}`).join("\n")}`
       : "\nSTYLE RULES: None specified";
 
+  // Random styling angle for variety
+  const randomAngle =
+    STYLING_ANGLES[Math.floor(Math.random() * STYLING_ANGLES.length)];
+
+  // Recent outfits to avoid repetition
+  const recentContext =
+    recentOutfitItemIds.length > 0
+      ? `\nRECENTLY SUGGESTED OUTFITS (DO NOT REPEAT THESE EXACT COMBOS):\n${recentOutfitItemIds.map((ids, i) => `- Outfit ${i + 1}: items [${ids.join(", ")}]`).join("\n")}`
+      : "";
+
   const response = await anthropic.messages.create({
     model: CLAUDE_MODEL,
-    max_tokens: 1500,
+    max_tokens: 2000,
     messages: [
       {
         role: "user",
-        content: `You are "Looks Good, Feels Good" — a fun, warm, fashion-savvy best friend and personal stylist for girls and women in Singapore.
+        content: `You are "Looks Good, Feels Good" — a fun, warm, fashion-savvy best friend and personal stylist who ACTUALLY knows fashion theory. You style girls and women in Singapore. You are CREATIVE and NEVER give boring or repetitive suggestions.
+
+You have been trained on a comprehensive fashion styling knowledge base. USE IT in every recommendation:
+
+${FASHION_KNOWLEDGE_BASE}
+
+═══════════════════════════════════════
+USER CONTEXT
+═══════════════════════════════════════
 
 ${physicalContext}
 ${rulesContext}
@@ -184,33 +222,38 @@ WEATHER: ${weather.temperature}°C, ${weather.humidity}% humidity, ${weather.con
 STYLE PREFERENCES: ${profile.style_preferences.join(", ")}
 AGE RANGE: ${profile.age_range}
 HAS UNIFORM: ${wardrobe.some((i) => i.is_uniform) ? "yes" : "no"}
+${recentContext}
 
-TASK:
-Generate the perfect outfit from the user's own wardrobe. Consider body proportions for flattering fits, skin undertone for color harmony, and hair for overall aesthetic cohesion. Respect ALL style rules.
+═══════════════════════════════════════
+YOUR CREATIVE DIRECTION FOR THIS REQUEST:
+${randomAngle}
+═══════════════════════════════════════
+
+VARIETY RULES:
+1. NEVER default to "black top + neutral bottom" unless the occasion truly calls for it
+2. Use the 3-color rule — pick colors intentionally, not randomly
+3. Apply proportion play — explain WHY the silhouette works
+4. Hair MUST match the occasion intensity from the hair guide AND suit the outfit's neckline
+5. Makeup MUST match the occasion intensity from the makeup guide AND the user's skin tone and age
+6. Shoes MUST match the occasion from the shoe guide AND the user's height
+7. If you suggested items recently (see above), DO NOT repeat — find a different combination
+8. Reference specific styling principles in your notes (e.g., "Using the rule of thirds here...")
+9. The vibe line should reference the ACTUAL occasion, not generic hype
 
 Return ONLY a JSON object:
 {
   "outfit_items": ["item_id_1", "item_id_2"],
-  "styling_notes": "Specific how-to-wear advice — tucking, rolling, layering. Reference body shape for fit tips.",
-  "color_analysis": "Why these colors work with the user's skin tone and undertone. Be specific about warm/cool harmony.",
-  "hair_suggestion": "A quick hair styling tip that complements this outfit and neckline.",
-  "makeup_tip": "Age-appropriate makeup look that ties the outfit together, considering skin tone.",
-  "accessory_tip": "Accessory picks from wardrobe or general suggestions. Respect any jewelry/accessory rules.",
-  "vibe_line": "Fun hype one-liner about the outfit.",
-  "weather_note": "Why this outfit works for today's Singapore weather.",
-  "height_fit_tips": "Specific tips based on height and body shape — e.g. how the high waist elongates legs, how the oversized blazer balances frame."
+  "styling_notes": "How to wear each piece for THIS occasion. Reference styling principles (proportion play, rule of thirds, fabric mixing, etc.). Be specific — tucking, rolling, layering, and WHY.",
+  "color_analysis": "Why these colors work with the user's skin tone/undertone AND the occasion. Reference the color theory guide. Apply the 3-color rule.",
+  "hair_suggestion": "A specific hairstyle from the hair guide matching the occasion intensity AND the outfit neckline. Describe exactly how to do it.",
+  "makeup_tip": "Specific makeup from the makeup guide matching occasion intensity, skin tone, AND age. Name products and placement.",
+  "accessory_tip": "Specific accessories matching occasion intensity. Reference shoe guide for footwear. Consider height.",
+  "vibe_line": "Fun one-liner capturing the SPECIFIC occasion energy.",
+  "weather_note": "How this outfit handles Singapore's weather. Reference climate rules.",
+  "height_fit_tips": "How this outfit flatters their body shape. Reference the body shape guide with specific principles."
 }
 
-RULES:
-- ONLY use item IDs from the wardrobe provided
-- If uniform items exist AND occasion involves school/post-school → restyle creatively
-- Prioritize breathable fabrics for Singapore's tropical climate
-- Match formality to occasion, energy to mood
-- Be SPECIFIC in styling notes (exactly how to wear each piece)
-- RESPECT all style rules (e.g. if "no gold jewelry" → only suggest silver/other metals)
-- Tone: fun best friend hyping her up before she walks out the door
-- Age-appropriate makeup (light for teens, can be editorial for 20s-30s)
-- If wardrobe lacks items for a complete outfit, say what's missing
+CRITICAL: Match EVERYTHING to the occasion intensity. Groceries = 1/10. Club = 8/10. The outfit, hair, makeup, shoes, and accessories should ALL reflect this intensity level. DO NOT give dinner-level styling for groceries.
 
 Return valid JSON only. No other text.`,
       },
@@ -225,7 +268,6 @@ Return valid JSON only. No other text.`,
 
 // ──────────────────────────────────────
 // 4. Gemini — Image generation
-// Generates 2 realistic photos side by side
 // ──────────────────────────────────────
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
@@ -240,12 +282,26 @@ export async function generateOutfitImage(
     ? `a ${profile.physical_profile.body_shape} young woman, ${profile.physical_profile.height_estimate} tall, with ${profile.physical_profile.skin_tone} skin, ${profile.physical_profile.hair_length} ${profile.physical_profile.hair_color} ${profile.physical_profile.hair_texture} hair`
     : "a stylish young woman";
 
-  const prompt = `Generate 2 photorealistic fashion photographs side by side of ${physicalDesc} wearing this exact outfit: ${outfitDescription}. 
+  const prompt = `Create a 2x2 grid of 4 photorealistic fashion photographs of ${physicalDesc} wearing this exact outfit: ${outfitDescription}. The setting is a ${occasion} location in Singapore.
 
-Photo 1: Full body shot, standing confidently at a ${occasion} setting in Singapore. Natural lighting, candid pose.
-Photo 2: Same person, same outfit, slightly different angle or pose, slightly different background within the same ${occasion} setting.
+The 4 photos should each have a DIFFERENT camera angle, framing, and focus:
 
-IMPORTANT: Make it look like a real photograph taken on a high-end smartphone, NOT an illustration or drawing. Real skin texture, real fabric texture, natural shadows. The person should look natural and confident, like a real fashion photo on Instagram. No cartoon, no watercolor, no sketch, no illustration style. Photorealistic only. Do NOT include any text or watermarks.`;
+Photo 1 (top-left): Full body shot from the front. Standing naturally, confident posture. Show the complete outfit head to toe. Slight smile, looking at camera. Warm natural lighting.
+
+Photo 2 (top-right): Three-quarter angle from the side. Walking or mid-stride. This captures the silhouette and how the outfit moves and drapes on the body. Slightly candid, like a street style photo.
+
+Photo 3 (bottom-left): Close-up detail shot. Focus on an interesting design element — could be the fabric texture, the way a collar sits, how the top is tucked, sleeve details, or a pattern close-up. Shallow depth of field, blurred background.
+
+Photo 4 (bottom-right): Lifestyle shot from behind or at a creative angle. The person interacting with the ${occasion} setting — sitting at a table, leaning on a railing, walking away. Shows the outfit in context.
+
+CRITICAL RULES:
+- ALL 4 photos must show the SAME person wearing the EXACT SAME outfit
+- Photorealistic ONLY — like photos taken on a high-end smartphone
+- Real skin texture, real fabric texture, natural shadows and lighting
+- NOT an illustration, NOT a drawing, NOT a sketch
+- The 4 photos arranged in a clean 2x2 grid with thin white borders
+- Do NOT include any text or watermarks
+- Singapore setting — tropical plants, modern architecture, warm lighting`;
 
   try {
     const response = await fetch(
