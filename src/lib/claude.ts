@@ -166,7 +166,7 @@ export async function generateOutfit(
     messages: [
       {
         role: "user",
-        content: `You are "Looks Good, Feels Good" — a fashion-savvy best friend and stylist for girls and women in Singapore. You ACTUALLY know fashion theory.
+        content: `You are "Looks Good, Feels Good" — a fashion-savvy best friend and stylist for girls and women. You ACTUALLY know fashion theory.
 
 ${FASHION_KNOWLEDGE_BASE}
 
@@ -210,11 +210,42 @@ Return valid JSON only. No other text.`,
 
 // ──────────────────────────────────────
 // 4. Gemini — Image generation
-// Now sends user's profile photo as reference
+// Detailed photography brief + occasion
+// background instructions + profile photo
 // ──────────────────────────────────────
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
 const GEMINI_MODEL = "gemini-2.5-flash-image";
+
+// Occasion-specific background briefs
+const BACKGROUND_BRIEFS: Record<string, string> = {
+  "errands": "Quiet residential street in the late morning. Dappled sunlight through trees. Sidewalk, low-rise buildings, maybe a corner shop or parked bicycle in the background. The vibe is unhurried, everyday life. Soft warm light, nothing dramatic.",
+  "groceries": "Quiet residential street in the late morning. Dappled sunlight through trees. Sidewalk, low-rise buildings, maybe a corner shop or parked bicycle in the background. The vibe is unhurried, everyday life. Soft warm light, nothing dramatic.",
+  "casual hangout": "Busy but stylish urban street with shopfronts and cafe awnings. People blurred in the background. String lights or signage softly out of focus. Late afternoon light bouncing off glass and concrete. The vibe is city energy without chaos.",
+  "mall": "Busy but stylish urban street with shopfronts and cafe awnings. People blurred in the background. String lights or signage softly out of focus. Late afternoon light bouncing off glass and concrete. The vibe is city energy without chaos.",
+  "brunch": "Outdoor cafe terrace with white tables, greenery, hanging plants. Morning light streaming in. Coffee cups and pastries slightly visible on a table nearby. The vibe is bright, fresh, social, and relaxed. Lots of natural green and white tones.",
+  "dinner": "Restaurant patio or rooftop with warm string lights and candles. Evening golden hour fading into blue hour. Warm amber lighting on the subject's face. Wine glasses or table settings softly blurred behind. The vibe is intimate, romantic, glowing.",
+  "date night": "Restaurant patio or rooftop with warm string lights and candles. Evening golden hour fading into blue hour. Warm amber lighting on the subject's face. Wine glasses or table settings softly blurred behind. The vibe is intimate, romantic, glowing.",
+  "party": "Dark moody interior with neon accents — pink, blue, purple. Bokeh lights everywhere. Other people blurred in the background. Low ambient lighting with one strong light source on the subject. The vibe is electric, bold, nightlife energy.",
+  "club": "Dark moody interior with neon accents — pink, blue, purple. Bokeh lights everywhere. Other people blurred in the background. Low ambient lighting with one strong light source on the subject. The vibe is electric, bold, nightlife energy.",
+  "school": "Bright outdoor courtyard or tree-lined walkway. Clean, open space with natural light. Lockers or campus buildings softly blurred behind. Afternoon light. The vibe is youthful, fresh, optimistic.",
+  "wedding guest": "Elegant garden or outdoor venue. Lush greenery, floral arrangements, maybe an archway or fountain softly blurred behind. Late afternoon golden light. The vibe is elegant, celebratory, romantic.",
+  "job interview": "Clean modern building entrance or lobby. Glass, steel, minimal architecture. Bright even lighting. A few blurred professionals walking in the background. The vibe is polished, confident, professional.",
+  "beach day": "Sandy beach with turquoise water. Palm trees swaying. Late afternoon golden sun low on the horizon. Warm highlights on skin. The vibe is carefree, sun-kissed, tropical.",
+  "workout": "Park or outdoor trail in the early morning. Dewy grass, trees, soft morning light filtering through. Open space with a path or bench. The vibe is energetic, fresh, healthy.",
+};
+
+function getBackgroundBrief(occasion: string): string {
+  const key = occasion.toLowerCase();
+  // Check for exact match first
+  if (BACKGROUND_BRIEFS[key]) return BACKGROUND_BRIEFS[key];
+  // Check for partial match
+  for (const [k, v] of Object.entries(BACKGROUND_BRIEFS)) {
+    if (key.includes(k) || k.includes(key)) return v;
+  }
+  // Default fallback
+  return "Stylish urban environment with warm natural lighting. Soft bokeh background with architectural details. Late afternoon golden hour. The vibe is aspirational but real.";
+}
 
 export async function generateOutfitImage(
   outfitDescription: string,
@@ -226,25 +257,69 @@ export async function generateOutfitImage(
     ? `a ${profile.physical_profile.body_shape} young woman, ${profile.physical_profile.height_estimate} tall, with ${profile.physical_profile.skin_tone} skin, ${profile.physical_profile.hair_length} ${profile.physical_profile.hair_color} ${profile.physical_profile.hair_texture} hair`
     : "a stylish young woman";
 
-  const prompt = `Generate 2 photorealistic fashion photographs side by side of ${physicalDesc} wearing this exact outfit: ${outfitDescription}. The setting is a ${occasion} location in Singapore.
+  const backgroundBrief = getBackgroundBrief(occasion);
 
-${profilePhotoBase64 ? "IMPORTANT: I have attached a reference photo of the actual person. The generated photos must closely match this person's face, skin tone, hair, and body proportions. Make it look like the SAME PERSON in the reference photo wearing the described outfit." : ""}
+  const prompt = `Generate 2 photorealistic fashion photographs side by side of ${physicalDesc} wearing this exact outfit: ${outfitDescription}.
 
-Photo 1: Full body shot from the front. Standing naturally, confident posture. Complete outfit head to toe. Warm natural lighting.
-Photo 2: Three-quarter angle, slightly candid, like a street style photo. Different background within the same ${occasion} setting.
+${profilePhotoBase64 ? "CRITICAL: I have attached a reference photo of the actual person. The generated photos MUST closely match this person's face, skin tone, hair color, hair texture, and body proportions. Make it look like the SAME PERSON in the reference photo wearing the described outfit." : ""}
 
-RULES:
-- Photorealistic ONLY — like high-end smartphone photos
-- Real skin texture, real fabric texture, natural shadows
-- NOT illustration, NOT drawing, NOT sketch
-- Singapore setting — tropical, modern, warm lighting
-- No text or watermarks`;
+═══ PHOTOGRAPHY STYLE BRIEF — follow this exactly ═══
+
+CAMERA & FRAMING:
+- Shot on a high-end mirrorless camera (Sony A7IV / Fujifilm X-T5 aesthetic)
+- Full body framing — the complete outfit must be visible from head to shoes
+- Camera at eye level or slightly below (never looking down at the subject)
+- Subject positioned slightly off-center using rule of thirds
+- Leave breathing room around the subject — not cropped tight
+
+LIGHTING:
+- Golden hour natural light — warm, soft, directional
+- Sun coming from the side or slightly behind (rim lighting on hair and shoulders)
+- No harsh shadows on the face — open shade or reflected fill light
+- Warm color temperature — think 5000-5500K with a slight warm shift
+- No flash, no studio lighting, no fluorescent — purely natural light
+
+DEPTH OF FIELD:
+- Shallow depth of field (f/2.8 - f/4 equivalent)
+- Subject is tack sharp, background is softly blurred (creamy bokeh)
+- Background elements are recognizable but not distracting
+- This separation makes the subject and outfit the clear focal point
+
+POSING:
+Photo 1 — The "walking shot": Subject mid-stride, one foot forward, arms relaxed at sides or one hand touching hair/bag. Slight smile, looking at camera or just past it. Body angled 15-20 degrees from camera (not perfectly squared). This gives movement and energy — like a street style photographer caught them walking by.
+
+Photo 2 — The "lifestyle moment": Subject interacting naturally with the environment — leaning against a wall, sitting at a table, standing by a railing, looking at something off-camera. Three-quarter angle showing the outfit's silhouette. More candid, less posed — like a friend took this photo while they weren't fully paying attention. Shows how the outfit moves and sits on the body in real life.
+
+COLOR GRADE:
+- Warm tones throughout — golden highlights, soft warm shadows
+- Skin tones are natural and warm, never desaturated or cold
+- Colors are rich but not oversaturated — think Kodak Portra 400 film look
+- Slight fade in the deepest shadows (lifted blacks) for that editorial feel
+- Greens in foliage are warm-toned, not neon
+
+═══ BACKGROUND & SETTING FOR THIS OCCASION ═══
+${backgroundBrief}
+
+═══ MOOD & ENERGY ═══
+- The overall feeling is "my most stylish friend just sent me this photo from her day"
+- Confident but not stiff — natural body language
+- Approachable and real — not high-fashion editorial or runway
+- The kind of photo that gets saved on Instagram for outfit inspiration
+- Street style blog meets lifestyle content creator aesthetic
+
+═══ ABSOLUTE RULES ═══
+- Photorealistic ONLY — must look like an actual photograph taken by a real camera
+- NOT an illustration, NOT a drawing, NOT AI-looking, NOT plastic-skinned
+- Real skin texture with natural imperfections, real fabric texture with natural draping
+- Natural hair movement — not perfectly styled to the point of looking fake
+- Clothing must look like real fabric on a real body — natural wrinkles, draping, movement
+- No text, watermarks, or labels anywhere on the image
+- The 2 photos should be arranged side by side with a thin white gap between them`;
 
   try {
-    // Build the request parts
     const parts: any[] = [];
 
-    // Add profile photo as reference if available
+    // Add profile photo as face/body reference if available
     if (profilePhotoBase64) {
       parts.push({
         inlineData: {
