@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { AIOutfitResult, WardrobeItem, WeatherData, OCCASIONS, MOODS } from "@/types";
 import AppShell from "@/components/layout/AppShell";
@@ -10,30 +11,34 @@ import { OutfitSkeleton } from "@/components/ui/Skeleton";
 import OutfitCard from "@/components/outfit/OutfitCard";
 import { Sparkles, CloudSun } from "lucide-react";
 
-export default function StyleMePage() {
+function StyleMeContent() {
+  const searchParams = useSearchParams();
   const [mood, setMood] = useState<string[]>([]);
   const [occasion, setOccasion] = useState<string[]>([]);
   const [freeText, setFreeText] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<(AIOutfitResult & { weather: WeatherData }) | null>(null);
+  const [result, setResult] = useState<(AIOutfitResult & { weather: WeatherData; outfitImage?: string | null }) | null>(null);
   const [wardrobe, setWardrobe] = useState<WardrobeItem[]>([]);
-  const [weather, setWeather] = useState<WeatherData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
 
+  // Pre-fill occasion from query params (#2)
   useEffect(() => {
-    async function loadData() {
-      const [wardrobeRes, weatherRes] = await Promise.all([
-        supabase
-          .from("wardrobe_items")
-          .select("*")
-          .order("created_at", { ascending: false }),
-        fetch("/api/weather").then((r) => r.ok ? r.json() : null).catch(() => null),
-      ]);
-      setWardrobe((wardrobeRes.data as WardrobeItem[]) || []);
-      if (weatherRes) setWeather(weatherRes);
+    const occasionParam = searchParams.get("occasion");
+    if (occasionParam) {
+      setOccasion([occasionParam]);
     }
-    loadData();
+  }, [searchParams]);
+
+  useEffect(() => {
+    async function loadWardrobe() {
+      const { data } = await supabase
+        .from("wardrobe_items")
+        .select("*")
+        .order("created_at", { ascending: false });
+      setWardrobe((data as WardrobeItem[]) || []);
+    }
+    loadWardrobe();
   }, []);
 
   async function handleGenerate() {
@@ -72,7 +77,7 @@ export default function StyleMePage() {
   }
 
   function toggleOccasion(value: string) {
-    setOccasion([value]); // Single select for occasion
+    setOccasion([value]);
   }
 
   const canGenerate = (mood.length > 0 || freeText.trim()) && wardrobe.length > 0;
@@ -80,28 +85,13 @@ export default function StyleMePage() {
   return (
     <AppShell>
       <div className="page-container">
-        {/* Header */}
         <div className="mb-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="font-display text-heading-lg text-warm-800 mb-1">
-                Style me!
-              </h1>
-              <p className="text-body-md text-neutral-600">
-                Tell me your mood and where you&apos;re going — I&apos;ll do the rest
-              </p>
-            </div>
-            {weather && (
-              <div className="flex-shrink-0 bg-white rounded-card px-3 py-2 shadow-soft text-center">
-                <p className="text-heading-sm text-warm-800 font-medium">
-                  {weather.temperature}°
-                </p>
-                <p className="text-[10px] text-neutral-400">
-                  {weather.condition}
-                </p>
-              </div>
-            )}
-          </div>
+          <h1 className="font-display text-heading-lg text-warm-800 mb-1">
+            Style me!
+          </h1>
+          <p className="text-body-md text-neutral-600">
+            Tell me your mood and where you&apos;re going — I&apos;ll do the rest
+          </p>
         </div>
 
         {wardrobe.length === 0 ? (
@@ -116,7 +106,6 @@ export default function StyleMePage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Free text input */}
             <div>
               <label className="text-body-sm font-medium text-neutral-600 mb-2 block">
                 What&apos;s the vibe? (optional — or use the tags below)
@@ -129,7 +118,6 @@ export default function StyleMePage() {
               />
             </div>
 
-            {/* Mood chips */}
             <div>
               <label className="text-body-sm font-medium text-neutral-600 mb-2 block">
                 How are you feeling?
@@ -143,7 +131,6 @@ export default function StyleMePage() {
               />
             </div>
 
-            {/* Occasion chips */}
             <div>
               <label className="text-body-sm font-medium text-neutral-600 mb-2 block">
                 Where are you going?
@@ -162,7 +149,6 @@ export default function StyleMePage() {
               </p>
             )}
 
-            {/* Generate button */}
             <Button
               onClick={handleGenerate}
               className="w-full flex items-center justify-center gap-2"
@@ -173,10 +159,8 @@ export default function StyleMePage() {
               {loading ? "Finding your perfect look..." : "Style me!"}
             </Button>
 
-            {/* Loading skeleton */}
             {loading && <OutfitSkeleton />}
 
-            {/* Result */}
             {result && !loading && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-sage-600">
@@ -199,5 +183,13 @@ export default function StyleMePage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+export default function StyleMePage() {
+  return (
+    <Suspense>
+      <StyleMeContent />
+    </Suspense>
   );
 }

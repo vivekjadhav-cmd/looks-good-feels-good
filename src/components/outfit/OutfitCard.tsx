@@ -14,6 +14,7 @@ import {
   CloudSun,
   Ruler,
   Paintbrush,
+  Share2,
 } from "lucide-react";
 
 interface OutfitCardProps {
@@ -33,6 +34,7 @@ export default function OutfitCard({
 }: OutfitCardProps) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const supabase = createClient();
 
   const outfitItems = wardrobeItems.filter((item) =>
@@ -74,6 +76,39 @@ export default function OutfitCard({
     setSaving(false);
   }
 
+  async function handleShare() {
+    setSharing(true);
+    const shareText = `${result.vibe_line}\n\nStyled by Looks Good, Feels Good\nhttps://looks-good-feels-good.vercel.app`;
+
+    // Try native share API first (works on mobile)
+    if (navigator.share && result.outfitImage) {
+      try {
+        // Convert base64 to blob for sharing
+        const response = await fetch(result.outfitImage);
+        const blob = await response.blob();
+        const file = new File([blob], "my-outfit.png", { type: "image/png" });
+
+        await navigator.share({
+          text: shareText,
+          files: [file],
+        });
+        setSharing(false);
+        return;
+      } catch {
+        // Fall through to clipboard
+      }
+    }
+
+    // Fallback: copy text + link to clipboard
+    try {
+      await navigator.clipboard.writeText(shareText);
+      toast("Copied! Paste it in WhatsApp or any chat");
+    } catch {
+      toast("Couldn't copy — try again", "error");
+    }
+    setSharing(false);
+  }
+
   return (
     <div className="card space-y-4">
       {/* Vibe line */}
@@ -83,16 +118,26 @@ export default function OutfitCard({
         </p>
       </div>
 
-      {/* AI Generated outfit image — 4 photo editorial grid */}
+      {/* AI Generated outfit image */}
       {result.outfitImage && (
         <div className="rounded-card overflow-hidden shadow-soft">
           <img
             src={result.outfitImage}
-            alt="Your outfit styled four ways"
+            alt="Your outfit styled"
             className="w-full h-auto"
           />
         </div>
       )}
+
+      {/* Share button (#5) */}
+      <button
+        onClick={handleShare}
+        disabled={sharing}
+        className="w-full flex items-center justify-center gap-2 bg-warm-50 text-warm-800 font-medium py-2.5 rounded-card hover:bg-warm-100 transition-colors text-body-sm"
+      >
+        <Share2 size={15} />
+        {sharing ? "Sharing..." : "Share this look"}
+      </button>
 
       {/* Outfit items as compact tags */}
       <div>
@@ -108,15 +153,15 @@ export default function OutfitCard({
         </div>
       </div>
 
-      {/* Styling details */}
-      <div className="space-y-3">
+      {/* Styling details — concise (#6) */}
+      <div className="space-y-2">
         <div className="flex items-start gap-3 bg-sage-50 rounded-card p-3">
-          <Shirt size={16} className="text-sage-600 mt-0.5 flex-shrink-0" />
+          <Shirt size={14} className="text-sage-600 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-body-sm font-medium text-sage-800 mb-0.5">
+            <p className="text-[11px] font-medium text-sage-800 mb-0.5">
               How to wear it
             </p>
-            <p className="text-body-sm text-sage-600">
+            <p className="text-[12px] text-sage-600 leading-relaxed">
               {result.styling_notes}
             </p>
           </div>
@@ -124,15 +169,12 @@ export default function OutfitCard({
 
         {result.color_analysis && (
           <div className="flex items-start gap-3 bg-warm-50 rounded-card p-3">
-            <Paintbrush
-              size={16}
-              className="text-warm-600 mt-0.5 flex-shrink-0"
-            />
+            <Paintbrush size={14} className="text-warm-600 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-body-sm font-medium text-warm-800 mb-0.5">
-                Color analysis
+              <p className="text-[11px] font-medium text-warm-800 mb-0.5">
+                Colors
               </p>
-              <p className="text-body-sm text-warm-600">
+              <p className="text-[12px] text-warm-600 leading-relaxed">
                 {result.color_analysis}
               </p>
             </div>
@@ -141,15 +183,12 @@ export default function OutfitCard({
 
         {result.hair_suggestion && (
           <div className="flex items-start gap-3 bg-neutral-100 rounded-card p-3">
-            <Sparkles
-              size={16}
-              className="text-neutral-600 mt-0.5 flex-shrink-0"
-            />
+            <Sparkles size={14} className="text-neutral-600 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-body-sm font-medium text-neutral-800 mb-0.5">
-                Hair suggestion
+              <p className="text-[11px] font-medium text-neutral-800 mb-0.5">
+                Hair
               </p>
-              <p className="text-body-sm text-neutral-600">
+              <p className="text-[12px] text-neutral-600 leading-relaxed">
                 {result.hair_suggestion}
               </p>
             </div>
@@ -157,57 +196,49 @@ export default function OutfitCard({
         )}
 
         <div className="flex items-start gap-3 bg-blush-50 rounded-card p-3">
-          <Palette
-            size={16}
-            className="text-blush-600 mt-0.5 flex-shrink-0"
-          />
+          <Palette size={14} className="text-blush-600 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-body-sm font-medium text-blush-600 mb-0.5">
-              Makeup look
+            <p className="text-[11px] font-medium text-blush-600 mb-0.5">
+              Makeup
             </p>
-            <p className="text-body-sm text-blush-600">{result.makeup_tip}</p>
+            <p className="text-[12px] text-blush-600 leading-relaxed">
+              {result.makeup_tip}
+            </p>
           </div>
         </div>
 
         <div className="flex items-start gap-3 bg-warm-50 rounded-card p-3">
-          <Sparkles
-            size={16}
-            className="text-warm-600 mt-0.5 flex-shrink-0"
-          />
+          <Sparkles size={14} className="text-warm-600 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-body-sm font-medium text-warm-800 mb-0.5">
+            <p className="text-[11px] font-medium text-warm-800 mb-0.5">
               Accessories
             </p>
-            <p className="text-body-sm text-warm-600">
+            <p className="text-[12px] text-warm-600 leading-relaxed">
               {result.accessory_tip}
             </p>
           </div>
         </div>
 
         <div className="flex items-start gap-3 bg-sage-50 rounded-card p-3">
-          <CloudSun
-            size={16}
-            className="text-sage-600 mt-0.5 flex-shrink-0"
-          />
+          <CloudSun size={14} className="text-sage-600 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-body-sm font-medium text-sage-800 mb-0.5">
-              Weather check
+            <p className="text-[11px] font-medium text-sage-800 mb-0.5">
+              Weather
             </p>
-            <p className="text-body-sm text-sage-600">{result.weather_note}</p>
+            <p className="text-[12px] text-sage-600 leading-relaxed">
+              {result.weather_note}
+            </p>
           </div>
         </div>
 
         {result.height_fit_tips && (
           <div className="flex items-start gap-3 bg-neutral-100 rounded-card p-3">
-            <Ruler
-              size={16}
-              className="text-neutral-600 mt-0.5 flex-shrink-0"
-            />
+            <Ruler size={14} className="text-neutral-600 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-body-sm font-medium text-neutral-800 mb-0.5">
-                Height & fit tips
+              <p className="text-[11px] font-medium text-neutral-800 mb-0.5">
+                Fit tips
               </p>
-              <p className="text-body-sm text-neutral-600">
+              <p className="text-[12px] text-neutral-600 leading-relaxed">
                 {result.height_fit_tips}
               </p>
             </div>

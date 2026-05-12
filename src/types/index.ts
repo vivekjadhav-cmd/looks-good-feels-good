@@ -12,7 +12,6 @@ export type StylePreference =
   | "minimal"
   | "bold";
 
-// AI-estimated from profile photo
 export interface PhysicalProfile {
   height_estimate: string;
   body_shape: string;
@@ -168,20 +167,30 @@ export interface WeatherData {
 }
 
 // ──────────────────────────────────────
-// UI
+// UI — Expanded moods and occasions (#4)
 // ──────────────────────────────────────
 
 export const OCCASIONS = [
   "School",
   "Date night",
   "Brunch",
+  "Lunch",
   "Dinner",
   "Casual hangout",
+  "Mall trip",
   "Party",
+  "Club",
   "Wedding guest",
   "Job interview",
+  "Work",
   "Workout",
   "Beach day",
+  "Travel",
+  "Groceries",
+  "Coffee run",
+  "Family gathering",
+  "Concert",
+  "Movie night",
 ] as const;
 
 export const MOODS = [
@@ -193,6 +202,14 @@ export const MOODS = [
   "Edgy",
   "Feminine",
   "Playful",
+  "Elegant",
+  "Sporty",
+  "Romantic",
+  "Artsy",
+  "Powerful",
+  "Cute",
+  "Mysterious",
+  "Fresh",
 ] as const;
 
 export type Occasion = (typeof OCCASIONS)[number];

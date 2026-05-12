@@ -187,17 +187,19 @@ CREATIVE DIRECTION: ${randomAngle}
 Return ONLY a JSON object:
 {
   "outfit_items": ["item_id_1", "item_id_2"],
-  "styling_notes": "How to wear each piece for THIS occasion. Reference styling principles.",
-  "color_analysis": "Why these colors work with skin tone AND occasion. Apply 3-color rule.",
-  "hair_suggestion": "Specific hairstyle from the hair guide matching occasion intensity AND neckline.",
-  "makeup_tip": "Specific makeup matching occasion intensity, skin tone, AND age.",
-  "accessory_tip": "Accessories + shoes matching occasion. Consider height.",
+  "styling_notes": "1-2 sentences MAX. How to wear it for THIS occasion. One key styling principle.",
+  "color_analysis": "1 sentence. Why these colors work with skin tone.",
+  "hair_suggestion": "1 sentence. Specific hairstyle name + one detail.",
+  "makeup_tip": "1 sentence. Key products only, matched to occasion intensity.",
+  "accessory_tip": "1 sentence. Shoes + one accessory.",
   "vibe_line": "Fun one-liner for this SPECIFIC occasion.",
-  "weather_note": "Weather suitability.",
-  "height_fit_tips": "How this flatters their body shape."
+  "weather_note": "1 sentence max.",
+  "height_fit_tips": "1 sentence. One key flattering detail."
 }
 
-CRITICAL: Match EVERYTHING to occasion intensity. Groceries=1/10. Club=8/10. DO NOT give dinner styling for groceries.
+CRITICAL RULES:
+- Match EVERYTHING to occasion intensity. Groceries=1/10. Club=8/10.
+- BE CONCISE. Each field should be 1-2 sentences, not paragraphs. Think text message, not essay.
 
 Return valid JSON only. No other text.`,
       },
