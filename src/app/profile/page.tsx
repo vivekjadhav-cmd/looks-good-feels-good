@@ -91,10 +91,7 @@ export default function ProfilePage() {
               {profile?.display_name || "Hey there!"}
             </p>
             <p className="text-body-sm text-neutral-600 capitalize">
-              {profile?.age_range === "teen"
-                ? "Teenager"
-                : profile?.age_range || ""}{" "}
-              · Singapore
+              {profile?.age_range || ""} · Singapore
             </p>
           </div>
         </div>
