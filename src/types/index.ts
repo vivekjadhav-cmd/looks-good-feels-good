@@ -2,7 +2,7 @@
 // User / Profile
 // ──────────────────────────────────────
 
-export type AgeRange = "teen" | "20s" | "30s";
+export type AgeRange = "10-12" | "13-15" | "16-18" | "20s" | "30s";
 
 export type StylePreference =
   | "casual"
@@ -14,14 +14,14 @@ export type StylePreference =
 
 // AI-estimated from profile photo
 export interface PhysicalProfile {
-  height_estimate: string; // e.g. "5'3\" (160cm)"
-  body_shape: string; // e.g. "Petite, slim frame"
-  skin_tone: string; // e.g. "Medium-warm, golden undertone"
+  height_estimate: string;
+  body_shape: string;
+  skin_tone: string;
   skin_undertone: "warm" | "cool" | "neutral";
-  hair_length: string; // e.g. "Shoulder-length"
-  hair_color: string; // e.g. "Dark brown"
-  hair_texture: string; // e.g. "Straight"
-  size_estimate: string; // e.g. "XS-S (US 0-2)"
+  hair_length: string;
+  hair_color: string;
+  hair_texture: string;
+  size_estimate: string;
 }
 
 export interface Profile {
@@ -29,7 +29,7 @@ export interface Profile {
   display_name: string | null;
   age_range: AgeRange | null;
   style_preferences: StylePreference[];
-  style_rules: string[]; // e.g. ["no gold jewelry", "no heels over 3 inches"]
+  style_rules: string[];
   has_uniform: boolean;
   onboarding_complete: boolean;
   profile_photo_url: string | null;
@@ -89,7 +89,7 @@ export interface WardrobeItem {
   color_primary: string | null;
   color_secondary: string | null;
   pattern: Pattern;
-  formality: number; // 1-5
+  formality: number;
   season: Season[];
   fabric_guess: FabricGuess | null;
   description: string | null;
@@ -97,7 +97,6 @@ export interface WardrobeItem {
   created_at: string;
 }
 
-// Claude Vision tagging response
 export interface AITagResult {
   item_type: ItemType;
   color_primary: string;
@@ -134,7 +133,6 @@ export interface Outfit {
   created_at: string;
 }
 
-// Claude Vision profile photo analysis response
 export interface AIProfileAnalysis {
   height_estimate: string;
   body_shape: string;
@@ -146,7 +144,6 @@ export interface AIProfileAnalysis {
   size_estimate: string;
 }
 
-// Claude outfit generation response
 export interface AIOutfitResult {
   outfit_items: string[];
   styling_notes: string;
@@ -166,8 +163,8 @@ export interface AIOutfitResult {
 export interface WeatherData {
   temperature: number;
   humidity: number;
-  condition: string; // "Clear", "Cloudy", "Rain", etc.
-  fetched_at: number; // timestamp for cache invalidation
+  condition: string;
+  fetched_at: number;
 }
 
 // ──────────────────────────────────────

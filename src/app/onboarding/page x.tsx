@@ -7,18 +7,10 @@ import { compressImage, fileToBase64, getMediaType } from "@/lib/image";
 import Button from "@/components/ui/Button";
 import ChipGroup from "@/components/ui/ChipGroup";
 import { AgeRange, StylePreference, AIProfileAnalysis } from "@/types";
-import { Camera, X, Plus, Check, Edit3 } from "lucide-react";
+import { Camera, Upload, X, Plus, Check } from "lucide-react";
 
 const STYLE_OPTIONS: StylePreference[] = [
   "casual", "smart", "edgy", "feminine", "minimal", "bold",
-];
-
-const AGE_OPTIONS: { value: AgeRange; label: string }[] = [
-  { value: "10-12", label: "10–12" },
-  { value: "13-15", label: "13–15" },
-  { value: "16-18", label: "16–18" },
-  { value: "20s", label: "20s" },
-  { value: "30s", label: "30s" },
 ];
 
 const TOTAL_STEPS = 5;
@@ -31,18 +23,6 @@ export default function OnboardingPage() {
   const [profileFile, setProfileFile] = useState<File | null>(null);
   const [physicalProfile, setPhysicalProfile] = useState<AIProfileAnalysis | null>(null);
   const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
-
-  // Editable profile fields (initialized from AI, user can override)
-  const [editHeight, setEditHeight] = useState("");
-  const [editBodyShape, setEditBodyShape] = useState("");
-  const [editSkinTone, setEditSkinTone] = useState("");
-  const [editSkinUndertone, setEditSkinUndertone] = useState<"warm" | "cool" | "neutral">("neutral");
-  const [editHairLength, setEditHairLength] = useState("");
-  const [editHairColor, setEditHairColor] = useState("");
-  const [editHairTexture, setEditHairTexture] = useState("");
-  const [editSize, setEditSize] = useState("");
-  const [editingField, setEditingField] = useState<string | null>(null);
-
   const [styles, setStyles] = useState<string[]>([]);
   const [styleRules, setStyleRules] = useState<string[]>([]);
   const [ruleInput, setRuleInput] = useState("");
@@ -73,16 +53,6 @@ export default function OnboardingPage() {
       if (!res.ok) throw new Error("Analysis failed");
       const result: AIProfileAnalysis = await res.json();
       setPhysicalProfile(result);
-
-      // Pre-fill editable fields from AI estimates
-      setEditHeight(result.height_estimate);
-      setEditBodyShape(result.body_shape);
-      setEditSkinTone(result.skin_tone);
-      setEditSkinUndertone(result.skin_undertone);
-      setEditHairLength(result.hair_length);
-      setEditHairColor(result.hair_color);
-      setEditHairTexture(result.hair_texture);
-      setEditSize(result.size_estimate);
     } catch {
       setError("Couldn't analyze the photo. Try another one?");
     } finally {
@@ -112,6 +82,7 @@ export default function OnboardingPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push("/login"); return; }
 
+    // Upload profile photo if provided
     let profilePhotoUrl: string | null = null;
     if (profileFile) {
       const compressed = await compressImage(profileFile);
@@ -124,7 +95,6 @@ export default function OnboardingPage() {
       profilePhotoUrl = publicUrl;
     }
 
-    // Use the editable fields (user-corrected) instead of raw AI output
     const { error: dbError } = await supabase.from("profiles").upsert({
       id: user.id,
       display_name: name || null,
@@ -134,14 +104,14 @@ export default function OnboardingPage() {
       has_uniform: hasUniform,
       onboarding_complete: true,
       profile_photo_url: profilePhotoUrl,
-      height_estimate: editHeight || null,
-      body_shape: editBodyShape || null,
-      skin_tone: editSkinTone || null,
-      skin_undertone: editSkinUndertone || null,
-      hair_length: editHairLength || null,
-      hair_color: editHairColor || null,
-      hair_texture: editHairTexture || null,
-      size_estimate: editSize || null,
+      height_estimate: physicalProfile?.height_estimate || null,
+      body_shape: physicalProfile?.body_shape || null,
+      skin_tone: physicalProfile?.skin_tone || null,
+      skin_undertone: physicalProfile?.skin_undertone || null,
+      hair_length: physicalProfile?.hair_length || null,
+      hair_color: physicalProfile?.hair_color || null,
+      hair_texture: physicalProfile?.hair_texture || null,
+      size_estimate: physicalProfile?.size_estimate || null,
     });
 
     if (dbError) {
@@ -151,47 +121,6 @@ export default function OnboardingPage() {
     }
 
     router.push("/wardrobe");
-  }
-
-  // Editable field component
-  function EditableRow({ label, value, field, onSave }: { label: string; value: string; field: string; onSave: (val: string) => void }) {
-    const [tempVal, setTempVal] = useState(value);
-
-    if (editingField === field) {
-      return (
-        <div className="py-2 border-b border-neutral-100 last:border-0">
-          <label className="text-body-sm text-neutral-400 mb-1 block">{label}</label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={tempVal}
-              onChange={(e) => setTempVal(e.target.value)}
-              className="input-field text-body-sm py-2"
-              autoFocus
-            />
-            <button
-              onClick={() => { onSave(tempVal); setEditingField(null); }}
-              className="bg-sage-50 text-sage-800 px-3 rounded-card flex-shrink-0"
-            >
-              <Check size={14} />
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex justify-between items-center py-2 border-b border-neutral-100 last:border-0">
-        <span className="text-body-sm text-neutral-400">{label}</span>
-        <button
-          onClick={() => { setTempVal(value); setEditingField(field); }}
-          className="flex items-center gap-1 group"
-        >
-          <span className="text-body-sm font-medium text-neutral-800">{value || "Not set"}</span>
-          <Edit3 size={12} className="text-neutral-400 group-hover:text-warm-600 transition-colors" />
-        </button>
-      </div>
-    );
   }
 
   return (
@@ -205,45 +134,56 @@ export default function OnboardingPage() {
 
       <div className="flex-1 flex flex-col page-container">
 
-        {/* ── Step 1: Name ── */}
+        {/* ── Step 1: Name + Age ── */}
         {step === 1 && (
           <div className="flex-1 flex flex-col">
             <h2 className="font-display text-heading-lg text-warm-800 mb-2">
-              Hey there! What should we call you?
+              Hey there! Let&apos;s get to know you
             </h2>
             <p className="text-body-md text-neutral-600 mb-8">
               We&apos;ll use this to personalize your styling.
             </p>
-            <div>
-              <input
-                type="text"
-                placeholder="Your name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="input-field"
-              />
+            <div className="space-y-6">
+              <div>
+                <label className="text-body-sm font-medium text-neutral-600 mb-2 block">What should we call you?</label>
+                <input type="text" placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} className="input-field" />
+              </div>
+              <div>
+                <label className="text-body-sm font-medium text-neutral-600 mb-3 block">Your age range</label>
+                <div className="flex gap-3">
+                  {([
+                    { value: "teen" as const, label: "14–18", emoji: "🎓" },
+                    { value: "20s" as const, label: "20s", emoji: "✨" },
+                    { value: "30s" as const, label: "30s", emoji: "💫" },
+                  ]).map((option) => (
+                    <button key={option.value} type="button" onClick={() => setAgeRange(option.value)}
+                      className={`flex-1 card text-center transition-all duration-200 ${ageRange === option.value ? "ring-2 ring-warm-400 bg-warm-50" : "hover:shadow-lifted"}`}>
+                      <span className="text-2xl block mb-1">{option.emoji}</span>
+                      <span className="text-body-md font-medium text-neutral-800">{option.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="mt-auto pt-8">
-              <Button onClick={() => setStep(2)} className="w-full" disabled={!name.trim()}>
-                Next →
-              </Button>
+              <Button onClick={() => setStep(2)} className="w-full" disabled={!ageRange}>Next →</Button>
             </div>
           </div>
         )}
 
-        {/* ── Step 2: Profile Photo + AI Analysis + Editable Fields ── */}
+        {/* ── Step 2: Profile Photo + AI Analysis ── */}
         {step === 2 && (
           <div className="flex-1 flex flex-col">
             <h2 className="font-display text-heading-lg text-warm-800 mb-2">
               Let&apos;s see you!
             </h2>
-            <p className="text-body-md text-neutral-600 mb-4">
-              Upload a full body photo so we can understand your proportions, skin tone, and hair. This stays private.
+            <p className="text-body-md text-neutral-600 mb-6">
+              Upload a full body photo so we can understand your proportions, skin tone, and hair for better styling. This stays private.
             </p>
 
             {!profilePreview ? (
               <button onClick={() => fileInputRef.current?.click()}
-                className="card flex flex-col items-center gap-4 py-10 hover:shadow-lifted transition-shadow">
+                className="card flex flex-col items-center gap-4 py-12 hover:shadow-lifted transition-shadow">
                 <div className="w-16 h-16 rounded-full bg-sage-50 flex items-center justify-center">
                   <Camera size={28} className="text-sage-600" />
                 </div>
@@ -252,79 +192,37 @@ export default function OnboardingPage() {
               </button>
             ) : (
               <div className="space-y-4">
-                {/* Photo preview */}
-                <div className="relative w-24 mx-auto">
+                <div className="relative w-48 mx-auto">
                   <div className="aspect-[3/4] rounded-card overflow-hidden shadow-soft">
                     <img src={profilePreview} alt="Profile" className="w-full h-full object-cover" />
                   </div>
-                  <button onClick={() => { setProfilePreview(null); setProfileFile(null); setPhysicalProfile(null); setEditingField(null); }}
-                    className="absolute -top-2 -right-2 w-6 h-6 bg-white rounded-full shadow-soft flex items-center justify-center">
-                    <X size={12} className="text-blush-600" />
+                  <button onClick={() => { setProfilePreview(null); setProfileFile(null); setPhysicalProfile(null); }}
+                    className="absolute -top-2 -right-2 w-7 h-7 bg-white rounded-full shadow-soft flex items-center justify-center">
+                    <X size={14} className="text-blush-600" />
                   </button>
                 </div>
 
-                {/* Loading state */}
                 {analyzingPhoto && (
-                  <div className="text-center py-4">
+                  <div className="text-center">
                     <div className="w-6 h-6 border-2 border-sage-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                     <p className="text-body-sm text-neutral-600">Analyzing your photo...</p>
                   </div>
                 )}
 
-                {/* Editable profile fields */}
-                {physicalProfile && !analyzingPhoto && (
-                  <div className="card">
-                    <div className="flex items-center gap-2 mb-3">
+                {physicalProfile && (
+                  <div className="card space-y-2">
+                    <div className="flex items-center gap-2 mb-1">
                       <Check size={14} className="text-sage-600" />
-                      <span className="text-body-sm font-medium text-sage-600">Profile estimated — tap to edit anything</span>
+                      <span className="text-body-sm font-medium text-sage-600">AI profile ready</span>
                     </div>
-
-                    <EditableRow label="Height" value={editHeight} field="height" onSave={setEditHeight} />
-                    <EditableRow label="Build" value={editBodyShape} field="body" onSave={setEditBodyShape} />
-                    <EditableRow label="Skin tone" value={editSkinTone} field="skin" onSave={setEditSkinTone} />
-                    <div className="flex justify-between items-center py-2 border-b border-neutral-100">
-                      <span className="text-body-sm text-neutral-400">Undertone</span>
-                      <div className="flex gap-1">
-                        {(["warm", "cool", "neutral"] as const).map((ut) => (
-                          <button
-                            key={ut}
-                            onClick={() => setEditSkinUndertone(ut)}
-                            className={`text-[11px] px-2 py-1 rounded-pill capitalize ${
-                              editSkinUndertone === ut
-                                ? "bg-warm-200 text-warm-800 font-medium"
-                                : "bg-neutral-100 text-neutral-600"
-                            }`}
-                          >
-                            {ut}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <EditableRow label="Hair length" value={editHairLength} field="hairLength" onSave={setEditHairLength} />
-                    <EditableRow label="Hair color" value={editHairColor} field="hairColor" onSave={setEditHairColor} />
-                    <EditableRow label="Hair texture" value={editHairTexture} field="hairTexture" onSave={setEditHairTexture} />
-                    <EditableRow label="Size estimate" value={editSize} field="size" onSave={setEditSize} />
-                  </div>
-                )}
-
-                {/* Age range */}
-                {physicalProfile && !analyzingPhoto && (
-                  <div className="card">
-                    <p className="text-[11px] text-neutral-400 uppercase tracking-wider mb-3">Age range</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {AGE_OPTIONS.map((option) => (
-                        <button
-                          key={option.value}
-                          onClick={() => setAgeRange(option.value)}
-                          className={`py-3 rounded-card text-center transition-all duration-200 ${
-                            ageRange === option.value
-                              ? "bg-sage-50 ring-2 ring-sage-400 text-sage-800 font-medium"
-                              : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
-                          }`}
-                        >
-                          <span className="text-body-sm">{option.label}</span>
-                        </button>
-                      ))}
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-body-sm">
+                      <span className="text-neutral-400">Height</span><span className="text-neutral-800">{physicalProfile.height_estimate}</span>
+                      <span className="text-neutral-400">Build</span><span className="text-neutral-800">{physicalProfile.body_shape}</span>
+                      <span className="text-neutral-400">Skin tone</span><span className="text-neutral-800">{physicalProfile.skin_tone}</span>
+                      <span className="text-neutral-400">Undertone</span><span className="text-neutral-800 capitalize">{physicalProfile.skin_undertone}</span>
+                      <span className="text-neutral-400">Hair</span><span className="text-neutral-800">{physicalProfile.hair_length}, {physicalProfile.hair_color}</span>
+                      <span className="text-neutral-400">Texture</span><span className="text-neutral-800">{physicalProfile.hair_texture}</span>
+                      <span className="text-neutral-400">Size est.</span><span className="text-neutral-800">{physicalProfile.size_estimate}</span>
                     </div>
                   </div>
                 )}
@@ -336,10 +234,10 @@ export default function OnboardingPage() {
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
               onChange={(e) => e.target.files?.[0] && handleProfilePhoto(e.target.files[0])} />
 
-            <div className="mt-auto pt-6 flex gap-3">
+            <div className="mt-auto pt-8 flex gap-3">
               <Button variant="secondary" onClick={() => setStep(1)}>← Back</Button>
               <Button onClick={() => setStep(3)} className="flex-1" disabled={analyzingPhoto}>
-                {profilePreview && physicalProfile ? "Looks right →" : "Skip for now →"}
+                {profilePreview ? "Next →" : "Skip for now →"}
               </Button>
             </div>
           </div>
@@ -370,7 +268,7 @@ export default function OnboardingPage() {
           <div className="flex-1 flex flex-col">
             <h2 className="font-display text-heading-lg text-warm-800 mb-2">Any style rules?</h2>
             <p className="text-body-md text-neutral-600 mb-6">
-              Tell us what you never wear or specific preferences.
+              Tell us what you never wear or specific preferences. We&apos;ll always respect these.
             </p>
 
             <div className="flex gap-2 mb-4">
@@ -422,7 +320,7 @@ export default function OnboardingPage() {
           <div className="flex-1 flex flex-col">
             <h2 className="font-display text-heading-lg text-warm-800 mb-2">One more thing!</h2>
             <p className="text-body-md text-neutral-600 mb-8">
-              Do you wear a school uniform? We can help you restyle it.
+              Do you wear a school uniform? We can help you restyle it for after-school plans.
             </p>
             <div className="flex gap-3">
               <button type="button" onClick={() => setHasUniform(true)}
@@ -436,6 +334,13 @@ export default function OnboardingPage() {
                 <span className="text-body-md font-medium text-neutral-800">Nope!</span>
               </button>
             </div>
+            {hasUniform && (
+              <div className="mt-4 bg-warm-50 rounded-card p-4">
+                <p className="text-body-sm text-warm-600">
+                  Nice! When you upload your wardrobe, tag your uniform pieces. We&apos;ll know how to restyle them.
+                </p>
+              </div>
+            )}
             <div className="mt-auto pt-8 flex gap-3">
               <Button variant="secondary" onClick={() => setStep(4)}>← Back</Button>
               <Button onClick={handleFinish} className="flex-1" loading={loading}>Let&apos;s go! ✨</Button>

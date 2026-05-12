@@ -9,15 +9,11 @@ import {
 } from "@/types";
 import { FASHION_KNOWLEDGE_BASE } from "@/lib/fashion-knowledge";
 
-// ──────────────────────────────────────
-// Claude — text analysis & styling logic
-// ──────────────────────────────────────
-
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 });
 
-const CLAUDE_MODEL = "claude-haiku-4-5-20251001"; 	
+const CLAUDE_MODEL = "claude-haiku-4-5-20251001";
 
 // ──────────────────────────────────────
 // 1. Profile photo analysis (Claude Vision)
@@ -36,43 +32,32 @@ export async function analyzeProfilePhoto(
         content: [
           {
             type: "image",
-            source: {
-              type: "base64",
-              media_type: mediaType as
-                | "image/jpeg"
-                | "image/png"
-                | "image/webp"
-                | "image/gif",
-              data: imageBase64,
-            },
+            source: { type: "base64", media_type: mediaType as any, data: imageBase64 },
           },
           {
             type: "text",
-            text: `You are a personal styling assistant analyzing a full body photo to estimate physical attributes for outfit recommendations. This is for a fashion app — be specific but kind.
+            text: `You are a personal styling assistant analyzing a full body photo to estimate physical attributes for outfit recommendations. Be specific but kind.
 
-Analyze the photo and return ONLY a JSON object:
+Return ONLY a JSON object:
 {
-  "height_estimate": "estimated height in feet/inches and cm, e.g. 5'3\\" (160cm)",
-  "body_shape": "brief description e.g. 'Petite, slim frame' or 'Average build, hourglass proportions' or 'Tall, athletic build'",
-  "skin_tone": "description e.g. 'Light, fair complexion' or 'Medium-warm, golden undertone' or 'Deep, rich complexion'",
+  "height_estimate": "e.g. 5'3\\" (160cm)",
+  "body_shape": "e.g. 'Petite, slim frame'",
+  "skin_tone": "e.g. 'Medium-warm, golden undertone'",
   "skin_undertone": "warm | cool | neutral",
-  "hair_length": "e.g. 'Shoulder-length' or 'Long, past shoulders' or 'Short bob'",
-  "hair_color": "e.g. 'Dark brown' or 'Black' or 'Light brown with highlights'",
-  "hair_texture": "e.g. 'Straight' or 'Wavy' or 'Curly' or 'Coily'",
-  "size_estimate": "e.g. 'XS-S (US 0-2)' or 'S-M (US 4-6)' or 'M-L (US 8-10)'"
+  "hair_length": "e.g. 'Shoulder-length'",
+  "hair_color": "e.g. 'Dark brown'",
+  "hair_texture": "e.g. 'Straight'",
+  "size_estimate": "e.g. 'XS-S (US 0-2)'"
 }
-
-Be encouraging and fashion-focused in descriptions. Return valid JSON only. No other text.`,
+Return valid JSON only.`,
           },
         ],
       },
     ],
   });
 
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
-  const cleaned = text.replace(/```json\n?|```/g, "").trim();
-  return JSON.parse(cleaned) as AIProfileAnalysis;
+  const text = response.content[0].type === "text" ? response.content[0].text : "";
+  return JSON.parse(text.replace(/```json\n?|```/g, "").trim());
 }
 
 // ──────────────────────────────────────
@@ -92,19 +77,11 @@ export async function tagWardrobeItem(
         content: [
           {
             type: "image",
-            source: {
-              type: "base64",
-              media_type: mediaType as
-                | "image/jpeg"
-                | "image/png"
-                | "image/webp"
-                | "image/gif",
-              data: imageBase64,
-            },
+            source: { type: "base64", media_type: mediaType as any, data: imageBase64 },
           },
           {
             type: "text",
-            text: `You are a fashion-savvy wardrobe cataloguer for a women's styling app. Analyze this clothing photo and return ONLY a JSON object:
+            text: `You are a fashion-savvy wardrobe cataloguer. Analyze this clothing photo and return ONLY a JSON object:
 {
   "item_type": "top | bottom | dress | skirt | outerwear | shoes | bag | accessory | swimwear | activewear | uniform_top | uniform_bottom",
   "color_primary": "#hex",
@@ -115,39 +92,34 @@ export async function tagWardrobeItem(
   "fabric_guess": "cotton | denim | silk | chiffon | polyester | linen | knit | leather | satin | tulle | other",
   "description": "Brief 1-line description"
 }
-Return valid JSON only. No other text.`,
+Return valid JSON only.`,
           },
         ],
       },
     ],
   });
 
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
-  const cleaned = text.replace(/```json\n?|```/g, "").trim();
-  return JSON.parse(cleaned) as AITagResult;
+  const text = response.content[0].type === "text" ? response.content[0].text : "";
+  return JSON.parse(text.replace(/```json\n?|```/g, "").trim());
 }
 
 // ──────────────────────────────────────
-// Styling angles — rotated randomly each
-// request to force variety
+// Styling angles for variety
 // ──────────────────────────────────────
 
 const STYLING_ANGLES = [
-  "Lead with COLOR — pick the most vibrant or interesting colored item first, then build around it. Apply the 3-color rule.",
-  "Lead with TEXTURE — pick an item with interesting fabric (knit, denim, satin, linen) and contrast it with something smooth. Reference the fabric mixing principle.",
-  "Lead with a STATEMENT PIECE — find the boldest item and make it the center. Style like a Reformation/Cool Girl lookbook.",
-  "Lead with SILHOUETTE — think proportion play. Go for contrast: fitted top + loose bottom, or oversized top + slim bottom. Reference the rule of thirds.",
-  "Lead with PATTERN — if there's a patterned piece, build the outfit around it. Use the 3-color rule with the pattern's colors.",
-  "Lead with LAYERING — even in Singapore's heat, creative Korean-style layering works. Open shirt over tank, vest over tee. Add depth.",
-  "Lead with the BOTTOM — start with the most interesting bottom and build up. Apply Zara aesthetic: take something structured and dress it down.",
-  "Lead with UNEXPECTED PAIRINGS — combine items the user never wears together. Think COS minimalism meets streetwear energy.",
+  "Lead with COLOR — pick the most vibrant item first. Apply the 3-color rule.",
+  "Lead with TEXTURE — contrast fabrics. Reference the fabric mixing principle.",
+  "Lead with a STATEMENT PIECE — find the boldest item. Style like Reformation/Cool Girl.",
+  "Lead with SILHOUETTE — think proportion play. Fitted top + loose bottom or vice versa.",
+  "Lead with PATTERN — build around a patterned piece. Use 3-color rule with pattern colors.",
+  "Lead with LAYERING — Korean-style layering even in heat. Open shirt over tank, vest over tee.",
+  "Lead with the BOTTOM — start with the most interesting bottom and build up. Zara aesthetic.",
+  "Lead with UNEXPECTED PAIRINGS — items the user never wears together. COS meets streetwear.",
 ];
 
 // ──────────────────────────────────────
 // 3. Outfit generation (Claude text)
-// Uses fashion knowledge base + variety
-// logic + recent outfit avoidance
 // ──────────────────────────────────────
 
 export async function generateOutfit(
@@ -170,29 +142,23 @@ export async function generateOutfit(
   }));
 
   const physicalContext = profile.physical_profile
-    ? `
-PHYSICAL PROFILE (estimated from profile photo):
+    ? `PHYSICAL PROFILE:
 - Height: ${profile.physical_profile.height_estimate}
 - Body shape: ${profile.physical_profile.body_shape}
-- Skin tone & undertone: ${profile.physical_profile.skin_tone} (${profile.physical_profile.skin_undertone})
+- Skin tone: ${profile.physical_profile.skin_tone} (${profile.physical_profile.skin_undertone})
 - Hair: ${profile.physical_profile.hair_length}, ${profile.physical_profile.hair_color}, ${profile.physical_profile.hair_texture}
-- Size estimate: ${profile.physical_profile.size_estimate}`
+- Size: ${profile.physical_profile.size_estimate}`
     : "PHYSICAL PROFILE: Not provided";
 
-  const rulesContext =
-    profile.style_rules && profile.style_rules.length > 0
-      ? `\nSTYLE RULES/RESTRICTIONS:\n${profile.style_rules.map((r) => `- ${r}`).join("\n")}`
-      : "\nSTYLE RULES: None specified";
+  const rulesContext = profile.style_rules?.length > 0
+    ? `STYLE RULES:\n${profile.style_rules.map((r) => `- ${r}`).join("\n")}`
+    : "STYLE RULES: None";
 
-  // Random styling angle for variety
-  const randomAngle =
-    STYLING_ANGLES[Math.floor(Math.random() * STYLING_ANGLES.length)];
+  const randomAngle = STYLING_ANGLES[Math.floor(Math.random() * STYLING_ANGLES.length)];
 
-  // Recent outfits to avoid repetition
-  const recentContext =
-    recentOutfitItemIds.length > 0
-      ? `\nRECENTLY SUGGESTED OUTFITS (DO NOT REPEAT THESE EXACT COMBOS):\n${recentOutfitItemIds.map((ids, i) => `- Outfit ${i + 1}: items [${ids.join(", ")}]`).join("\n")}`
-      : "";
+  const recentContext = recentOutfitItemIds.length > 0
+    ? `RECENTLY SUGGESTED (DO NOT REPEAT):\n${recentOutfitItemIds.map((ids, i) => `- Outfit ${i + 1}: [${ids.join(", ")}]`).join("\n")}`
+    : "";
 
   const response = await anthropic.messages.create({
     model: CLAUDE_MODEL,
@@ -200,74 +166,51 @@ PHYSICAL PROFILE (estimated from profile photo):
     messages: [
       {
         role: "user",
-        content: `You are "Looks Good, Feels Good" — a fun, warm, fashion-savvy best friend and personal stylist who ACTUALLY knows fashion theory. You style girls and women in Singapore. You are CREATIVE and NEVER give boring or repetitive suggestions.
-
-You have been trained on a comprehensive fashion styling knowledge base. USE IT in every recommendation:
+        content: `You are "Looks Good, Feels Good" — a fashion-savvy best friend and stylist for girls and women in Singapore. You ACTUALLY know fashion theory.
 
 ${FASHION_KNOWLEDGE_BASE}
-
-═══════════════════════════════════════
-USER CONTEXT
-═══════════════════════════════════════
 
 ${physicalContext}
 ${rulesContext}
 
-WARDROBE:
-${JSON.stringify(wardrobeSummary)}
+WARDROBE: ${JSON.stringify(wardrobeSummary)}
 
 OCCASION: ${occasion}
 MOOD: ${mood}
 WEATHER: ${weather.temperature}°C, ${weather.humidity}% humidity, ${weather.condition}
 STYLE PREFERENCES: ${profile.style_preferences.join(", ")}
 AGE RANGE: ${profile.age_range}
-HAS UNIFORM: ${wardrobe.some((i) => i.is_uniform) ? "yes" : "no"}
 ${recentContext}
 
-═══════════════════════════════════════
-YOUR CREATIVE DIRECTION FOR THIS REQUEST:
-${randomAngle}
-═══════════════════════════════════════
-
-VARIETY RULES:
-1. NEVER default to "black top + neutral bottom" unless the occasion truly calls for it
-2. Use the 3-color rule — pick colors intentionally, not randomly
-3. Apply proportion play — explain WHY the silhouette works
-4. Hair MUST match the occasion intensity from the hair guide AND suit the outfit's neckline
-5. Makeup MUST match the occasion intensity from the makeup guide AND the user's skin tone and age
-6. Shoes MUST match the occasion from the shoe guide AND the user's height
-7. If you suggested items recently (see above), DO NOT repeat — find a different combination
-8. Reference specific styling principles in your notes (e.g., "Using the rule of thirds here...")
-9. The vibe line should reference the ACTUAL occasion, not generic hype
+CREATIVE DIRECTION: ${randomAngle}
 
 Return ONLY a JSON object:
 {
   "outfit_items": ["item_id_1", "item_id_2"],
-  "styling_notes": "How to wear each piece for THIS occasion. Reference styling principles (proportion play, rule of thirds, fabric mixing, etc.). Be specific — tucking, rolling, layering, and WHY.",
-  "color_analysis": "Why these colors work with the user's skin tone/undertone AND the occasion. Reference the color theory guide. Apply the 3-color rule.",
-  "hair_suggestion": "A specific hairstyle from the hair guide matching the occasion intensity AND the outfit neckline. Describe exactly how to do it.",
-  "makeup_tip": "Specific makeup from the makeup guide matching occasion intensity, skin tone, AND age. Name products and placement.",
-  "accessory_tip": "Specific accessories matching occasion intensity. Reference shoe guide for footwear. Consider height.",
-  "vibe_line": "Fun one-liner capturing the SPECIFIC occasion energy.",
-  "weather_note": "How this outfit handles Singapore's weather. Reference climate rules.",
-  "height_fit_tips": "How this outfit flatters their body shape. Reference the body shape guide with specific principles."
+  "styling_notes": "How to wear each piece for THIS occasion. Reference styling principles.",
+  "color_analysis": "Why these colors work with skin tone AND occasion. Apply 3-color rule.",
+  "hair_suggestion": "Specific hairstyle from the hair guide matching occasion intensity AND neckline.",
+  "makeup_tip": "Specific makeup matching occasion intensity, skin tone, AND age.",
+  "accessory_tip": "Accessories + shoes matching occasion. Consider height.",
+  "vibe_line": "Fun one-liner for this SPECIFIC occasion.",
+  "weather_note": "Weather suitability.",
+  "height_fit_tips": "How this flatters their body shape."
 }
 
-CRITICAL: Match EVERYTHING to the occasion intensity. Groceries = 1/10. Club = 8/10. The outfit, hair, makeup, shoes, and accessories should ALL reflect this intensity level. DO NOT give dinner-level styling for groceries.
+CRITICAL: Match EVERYTHING to occasion intensity. Groceries=1/10. Club=8/10. DO NOT give dinner styling for groceries.
 
 Return valid JSON only. No other text.`,
       },
     ],
   });
 
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
-  const cleaned = text.replace(/```json\n?|```/g, "").trim();
-  return JSON.parse(cleaned) as AIOutfitResult;
+  const text = response.content[0].type === "text" ? response.content[0].text : "";
+  return JSON.parse(text.replace(/```json\n?|```/g, "").trim());
 }
 
 // ──────────────────────────────────────
 // 4. Gemini — Image generation
+// Now sends user's profile photo as reference
 // ──────────────────────────────────────
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
@@ -276,45 +219,50 @@ const GEMINI_MODEL = "gemini-2.5-flash-image";
 export async function generateOutfitImage(
   outfitDescription: string,
   occasion: string,
-  profile: Profile
+  profile: Profile,
+  profilePhotoBase64?: string | null
 ): Promise<string | null> {
   const physicalDesc = profile.physical_profile
     ? `a ${profile.physical_profile.body_shape} young woman, ${profile.physical_profile.height_estimate} tall, with ${profile.physical_profile.skin_tone} skin, ${profile.physical_profile.hair_length} ${profile.physical_profile.hair_color} ${profile.physical_profile.hair_texture} hair`
     : "a stylish young woman";
 
-  const prompt = `Create a 2x2 grid of 4 photorealistic fashion photographs of ${physicalDesc} wearing this exact outfit: ${outfitDescription}. The setting is a ${occasion} location in Singapore.
+  const prompt = `Generate 2 photorealistic fashion photographs side by side of ${physicalDesc} wearing this exact outfit: ${outfitDescription}. The setting is a ${occasion} location in Singapore.
 
-The 4 photos should each have a DIFFERENT camera angle, framing, and focus:
+${profilePhotoBase64 ? "IMPORTANT: I have attached a reference photo of the actual person. The generated photos must closely match this person's face, skin tone, hair, and body proportions. Make it look like the SAME PERSON in the reference photo wearing the described outfit." : ""}
 
-Photo 1 (top-left): Full body shot from the front. Standing naturally, confident posture. Show the complete outfit head to toe. Slight smile, looking at camera. Warm natural lighting.
+Photo 1: Full body shot from the front. Standing naturally, confident posture. Complete outfit head to toe. Warm natural lighting.
+Photo 2: Three-quarter angle, slightly candid, like a street style photo. Different background within the same ${occasion} setting.
 
-Photo 2 (top-right): Three-quarter angle from the side. Walking or mid-stride. This captures the silhouette and how the outfit moves and drapes on the body. Slightly candid, like a street style photo.
-
-Photo 3 (bottom-left): Close-up detail shot. Focus on an interesting design element — could be the fabric texture, the way a collar sits, how the top is tucked, sleeve details, or a pattern close-up. Shallow depth of field, blurred background.
-
-Photo 4 (bottom-right): Lifestyle shot from behind or at a creative angle. The person interacting with the ${occasion} setting — sitting at a table, leaning on a railing, walking away. Shows the outfit in context.
-
-CRITICAL RULES:
-- ALL 4 photos must show the SAME person wearing the EXACT SAME outfit
-- Photorealistic ONLY — like photos taken on a high-end smartphone
-- Real skin texture, real fabric texture, natural shadows and lighting
-- NOT an illustration, NOT a drawing, NOT a sketch
-- The 4 photos arranged in a clean 2x2 grid with thin white borders
-- Do NOT include any text or watermarks
-- Singapore setting — tropical plants, modern architecture, warm lighting`;
+RULES:
+- Photorealistic ONLY — like high-end smartphone photos
+- Real skin texture, real fabric texture, natural shadows
+- NOT illustration, NOT drawing, NOT sketch
+- Singapore setting — tropical, modern, warm lighting
+- No text or watermarks`;
 
   try {
+    // Build the request parts
+    const parts: any[] = [];
+
+    // Add profile photo as reference if available
+    if (profilePhotoBase64) {
+      parts.push({
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: profilePhotoBase64,
+        },
+      });
+    }
+
+    parts.push({ text: prompt });
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }],
-            },
-          ],
+          contents: [{ parts }],
           generationConfig: {
             responseModalities: ["IMAGE", "TEXT"],
           },
@@ -323,20 +271,15 @@ CRITICAL RULES:
     );
 
     if (!response.ok) {
-      console.error(
-        "Gemini API error:",
-        response.status,
-        await response.text()
-      );
+      console.error("Gemini API error:", response.status, await response.text());
       return null;
     }
 
     const data = await response.json();
+    const responseParts = data.candidates?.[0]?.content?.parts;
+    if (!responseParts) return null;
 
-    const parts = data.candidates?.[0]?.content?.parts;
-    if (!parts) return null;
-
-    for (const part of parts) {
+    for (const part of responseParts) {
       if (part.inlineData) {
         return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
       }

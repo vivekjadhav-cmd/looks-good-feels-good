@@ -8,17 +8,12 @@ export async function POST(request: NextRequest) {
     const { mood, occasion } = await request.json();
 
     if (!mood || !occasion) {
-      return NextResponse.json(
-        { error: "Missing mood or occasion" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing mood or occasion" }, { status: 400 });
     }
 
     const supabase = await createServerSupabase();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -30,10 +25,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (!profile) {
-      return NextResponse.json(
-        { error: "Profile not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
     const { data: wardrobe } = await supabase
@@ -56,9 +48,7 @@ export async function POST(request: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(5);
 
-    const recentOutfitItemIds = (recentOutfits || []).map(
-      (o: any) => o.item_ids || []
-    );
+    const recentOutfitItemIds = (recentOutfits || []).map((o: any) => o.item_ids || []);
 
     const weather = await getWeather();
 
@@ -79,12 +69,7 @@ export async function POST(request: NextRequest) {
     };
 
     const result = await generateOutfit(
-      wardrobe,
-      mood,
-      occasion,
-      weather,
-      fullProfile,
-      recentOutfitItemIds
+      wardrobe, mood, occasion, weather, fullProfile, recentOutfitItemIds
     );
 
     // Build outfit description for image generation
@@ -95,13 +80,28 @@ export async function POST(request: NextRequest) {
       .map((item: any) => item.description)
       .join(", ");
 
-    // Generate outfit image via Gemini
+    // Fetch profile photo as base64 for Gemini reference
+    let profilePhotoBase64: string | null = null;
+    if (profile.profile_photo_url) {
+      try {
+        const photoResponse = await fetch(profile.profile_photo_url);
+        if (photoResponse.ok) {
+          const buffer = await photoResponse.arrayBuffer();
+          profilePhotoBase64 = Buffer.from(buffer).toString("base64");
+        }
+      } catch (photoErr) {
+        console.error("Failed to fetch profile photo:", photoErr);
+      }
+    }
+
+    // Generate outfit image via Gemini with profile photo reference
     let outfitImage = null;
     try {
       outfitImage = await generateOutfitImage(
         outfitDescription,
         occasion,
-        fullProfile
+        fullProfile,
+        profilePhotoBase64
       );
     } catch (imgError) {
       console.error("Image generation failed:", imgError);
