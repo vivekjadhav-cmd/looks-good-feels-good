@@ -112,14 +112,22 @@ export async function POST(request: NextRequest) {
       console.log("No profile photo URL found");
     }
 
-    // Generate outfit image via Gemini with profile photo reference
+    // Generate outfit image via Gemini with profile photo reference + styling context
     let outfitImage = null;
     try {
       outfitImage = await generateOutfitImage(
         outfitDescription,
         occasion,
         fullProfile,
-        profilePhotoBase64
+        profilePhotoBase64,
+        {
+          userRequest: mood,
+          mood: mood,
+          hairSuggestion: result.hair_suggestion,
+          makeupTip: result.makeup_tip,
+          accessoryTip: result.accessory_tip,
+          stylingNotes: result.styling_notes,
+        }
       );
     } catch (imgError) {
       console.error("Image generation failed:", imgError);

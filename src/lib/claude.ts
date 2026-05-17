@@ -253,7 +253,15 @@ export async function generateOutfitImage(
   outfitDescription: string,
   occasion: string,
   profile: Profile,
-  profilePhotoBase64?: string | null
+  profilePhotoBase64?: string | null,
+  stylingContext?: {
+    userRequest?: string;
+    mood?: string;
+    hairSuggestion?: string;
+    makeupTip?: string;
+    accessoryTip?: string;
+    stylingNotes?: string;
+  }
 ): Promise<string | null> {
   const physicalDesc = profile.physical_profile
     ? `a ${profile.physical_profile.body_shape} young woman, ${profile.physical_profile.height_estimate} tall, with ${profile.physical_profile.skin_tone} skin, ${profile.physical_profile.hair_length} ${profile.physical_profile.hair_color} ${profile.physical_profile.hair_texture} hair`
@@ -261,9 +269,31 @@ export async function generateOutfitImage(
 
   const backgroundBrief = getBackgroundBrief(occasion);
 
+  // Build styling details from Claude's response + user's request
+  const stylingDetails = [];
+  if (stylingContext?.userRequest) {
+    stylingDetails.push(`USER'S SPECIFIC REQUEST: "${stylingContext.userRequest}" — this MUST be reflected in the image.`);
+  }
+  if (stylingContext?.hairSuggestion) {
+    stylingDetails.push(`HAIR: ${stylingContext.hairSuggestion}`);
+  }
+  if (stylingContext?.makeupTip) {
+    stylingDetails.push(`MAKEUP: ${stylingContext.makeupTip}`);
+  }
+  if (stylingContext?.accessoryTip) {
+    stylingDetails.push(`ACCESSORIES & SHOES: ${stylingContext.accessoryTip}`);
+  }
+  if (stylingContext?.stylingNotes) {
+    stylingDetails.push(`HOW THE OUTFIT IS WORN: ${stylingContext.stylingNotes}`);
+  }
+  const stylingBlock = stylingDetails.length > 0
+    ? `\n═══ STYLING DETAILS — show ALL of these in the image ═══\n${stylingDetails.join("\n")}\n`
+    : "";
+
   const prompt = `Generate 2 photorealistic fashion photographs side by side of ${physicalDesc} wearing this exact outfit: ${outfitDescription}.
 
 ${profilePhotoBase64 ? "CRITICAL: I have attached a reference photo of the actual person. The generated photos MUST closely match this person's face, skin tone, hair color, hair texture, and body proportions. Make it look like the SAME PERSON in the reference photo wearing the described outfit." : ""}
+${stylingBlock}
 
 ═══ PHOTOGRAPHY STYLE BRIEF — follow this exactly ═══
 
