@@ -326,20 +326,38 @@ export default function ProfilePage() {
           </Button>
         </div>
 
-        {/* Uniform status */}
+       {/* Uniform toggle */}
         <div className="card mb-6">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">👔</span>
-            <div>
-              <p className="text-body-md font-medium text-neutral-800">
-                School uniform
-              </p>
-              <p className="text-body-sm text-neutral-600">
-                {profile?.has_uniform
-                  ? "You have uniform items — we'll restyle them for you"
-                  : "No uniform registered"}
-              </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">👔</span>
+              <div>
+                <p className="text-body-md font-medium text-neutral-800">
+                  School uniform
+                </p>
+                <p className="text-body-sm text-neutral-600">
+                  {profile?.has_uniform
+                    ? "We'll restyle it for after-school plans"
+                    : "Toggle on if you wear a uniform"}
+                </p>
+              </div>
             </div>
+            <button
+              onClick={async () => {
+                if (!profile) return;
+                const newVal = !profile.has_uniform;
+                await supabase.from("profiles").update({ has_uniform: newVal }).eq("id", profile.id);
+                setProfile({ ...profile, has_uniform: newVal });
+                toast(newVal ? "Uniform mode on!" : "Uniform mode off");
+              }}
+              className={`w-12 h-7 rounded-full transition-colors duration-200 relative ${
+                profile?.has_uniform ? "bg-sage-400" : "bg-neutral-300"
+              }`}
+            >
+              <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-transform duration-200 shadow-soft ${
+                profile?.has_uniform ? "translate-x-6" : "translate-x-1"
+              }`} />
+            </button>
           </div>
         </div>
 
