@@ -67,10 +67,10 @@ Return valid JSON only.`,
 export async function tagWardrobeItem(
   imageBase64: string,
   mediaType: string
-): Promise<AITagResult> {
+): Promise<AITagResult[]> {
   const response = await anthropic.messages.create({
     model: CLAUDE_MODEL,
-    max_tokens: 500,
+    max_tokens: 1000,
     messages: [
       {
         role: "user",
@@ -81,7 +81,13 @@ export async function tagWardrobeItem(
           },
           {
             type: "text",
-            text: `You are a fashion-savvy wardrobe cataloguer. Analyze this clothing photo and return ONLY a JSON object:
+            text: `You are a fashion-savvy wardrobe cataloguer. Analyze this clothing photo.
+
+If the photo contains MULTIPLE clothing items (e.g., a top and shorts together, a shirt and skirt, a full outfit laid out), return a JSON ARRAY with one object per item.
+
+If the photo contains only ONE item, still return a JSON ARRAY with one object.
+
+Each object should have:
 {
   "item_type": "top | bottom | dress | skirt | outerwear | shoes | bag | accessory | swimwear | activewear | uniform_top | uniform_bottom",
   "color_primary": "#hex",
@@ -90,9 +96,17 @@ export async function tagWardrobeItem(
   "formality": 1-5,
   "season": ["hot", "cool", "rainy", "all"],
   "fabric_guess": "cotton | denim | silk | chiffon | polyester | linen | knit | leather | satin | tulle | other",
-  "description": "Brief 1-line description"
+  "description": "Brief 1-line description of THIS specific item only"
 }
-Return valid JSON only.`,
+
+IMPORTANT: 
+- A dress is ONE item, not a top + bottom
+- A jumpsuit is ONE item
+- But a shirt + shorts photographed together = TWO items
+- A top + skirt photographed together = TWO items
+- Shoes, bags, accessories each count as separate items
+
+Return a valid JSON ARRAY only. No other text.`,
           },
         ],
       },
@@ -100,7 +114,13 @@ Return valid JSON only.`,
   });
 
   const text = response.content[0].type === "text" ? response.content[0].text : "";
-  return JSON.parse(text.replace(/```json\n?|```/g, "").trim());
+  const parsed = JSON.parse(text.replace(/```json\n?|```/g, "").trim());
+  
+  // Ensure we always return an array
+  if (Array.isArray(parsed)) {
+    return parsed as AITagResult[];
+  }
+  return [parsed] as AITagResult[];
 }
 
 // ──────────────────────────────────────

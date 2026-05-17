@@ -12,8 +12,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const tags = await tagWardrobeItem(image, mediaType);
-    return NextResponse.json(tags);
+    const results = await tagWardrobeItem(image, mediaType);
+
+    // Return the array of tagged items
+    return NextResponse.json(results);
   } catch (error) {
     console.error("Tagging error:", error);
     return NextResponse.json(

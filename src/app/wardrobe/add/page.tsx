@@ -98,31 +98,41 @@ export default function WardrobeAddPage() {
         });
 
         if (!tagRes.ok) throw new Error("Tagging failed");
-        const tags = await tagRes.json();
+        const tagsArray = await tagRes.json();
 
-        // Step 3: Save to database
-        const { error: dbError } = await supabase
-          .from("wardrobe_items")
-          .insert({
-            id: itemId,
-            user_id: user.id,
-            image_url: publicUrl,
-            item_type: tags.item_type,
-            color_primary: tags.color_primary,
-            color_secondary: tags.color_secondary,
-            pattern: tags.pattern,
-            formality: tags.formality,
-            season: tags.season,
-            fabric_guess: tags.fabric_guess,
-            description: tags.description,
-            is_uniform: tags.item_type?.includes("uniform") || false,
-          });
+        // Handle multiple items detected in one photo
+        const items = Array.isArray(tagsArray) ? tagsArray : [tagsArray];
+        const descriptions: string[] = [];
 
-        if (dbError) throw new Error("Save failed");
+        for (let i = 0; i < items.length; i++) {
+          const tags = items[i];
+          const currentItemId = i === 0 ? itemId : crypto.randomUUID();
+          
+          // Step 3: Save each item to database
+          const { error: dbError } = await supabase
+            .from("wardrobe_items")
+            .insert({
+              id: currentItemId,
+              user_id: user.id,
+              image_url: publicUrl,
+              item_type: tags.item_type,
+              color_primary: tags.color_primary,
+              color_secondary: tags.color_secondary,
+              pattern: tags.pattern,
+              formality: tags.formality,
+              season: tags.season,
+              fabric_guess: tags.fabric_guess,
+              description: tags.description,
+              is_uniform: tags.item_type?.includes("uniform") || false,
+            });
+
+          if (dbError) throw new Error("Save failed");
+          descriptions.push(tags.description);
+        }
 
         updatePhotoStatus(photo.id, {
           status: "done",
-          description: tags.description,
+          description: descriptions.join(" + "),
         });
       } catch (err: any) {
         updatePhotoStatus(photo.id, {
