@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Re-fetch profile fresh each time to get latest photo URL
     const { data: profile } = await supabase
       .from("profiles")
       .select("*")
@@ -81,17 +82,34 @@ export async function POST(request: NextRequest) {
       .join(", ");
 
     // Fetch profile photo as base64 for Gemini reference
+    // Use cache-busting to ensure we get the latest photo
     let profilePhotoBase64: string | null = null;
     if (profile.profile_photo_url) {
       try {
-        const photoResponse = await fetch(profile.profile_photo_url);
+        const cacheBuster = `?t=${Date.now()}`;
+        const photoUrl = profile.profile_photo_url.includes("?")
+          ? `${profile.profile_photo_url}&cb=${Date.now()}`
+          : `${profile.profile_photo_url}${cacheBuster}`;
+
+        console.log("Fetching profile photo:", photoUrl);
+
+        const photoResponse = await fetch(photoUrl, {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache" },
+        });
+
         if (photoResponse.ok) {
           const buffer = await photoResponse.arrayBuffer();
           profilePhotoBase64 = Buffer.from(buffer).toString("base64");
+          console.log("Profile photo fetched successfully, size:", profilePhotoBase64.length);
+        } else {
+          console.error("Profile photo fetch failed:", photoResponse.status);
         }
       } catch (photoErr) {
         console.error("Failed to fetch profile photo:", photoErr);
       }
+    } else {
+      console.log("No profile photo URL found");
     }
 
     // Generate outfit image via Gemini with profile photo reference

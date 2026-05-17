@@ -3,13 +3,13 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import { Profile, StylePreference } from "@/types";
+import { Profile, StylePreference, AIProfileAnalysis } from "@/types";
 import AppShell from "@/components/layout/AppShell";
 import Button from "@/components/ui/Button";
 import ChipGroup from "@/components/ui/ChipGroup";
 import { toast } from "@/components/ui/Toast";
-import { compressImage } from "@/lib/image";
-import { LogOut, User, Camera, Edit3, Check, X } from "lucide-react";
+import { compressImage, fileToBase64, getMediaType } from "@/lib/image";
+import { LogOut, User, Camera, Edit3, Check, X, RefreshCw } from "lucide-react";
 
 const STYLE_OPTIONS: StylePreference[] = [
   "casual", "smart", "edgy", "feminine", "minimal", "bold",
@@ -75,18 +75,94 @@ export default function ProfilePage() {
     setUploadingPhoto(true);
     try {
       const compressed = await compressImage(file);
-      const path = `profiles/${profile.id}/profile.jpg`;
-      await supabase.storage.from("wardrobe").upload(path, compressed, {
-        contentType: "image/jpeg",
-        upsert: true,
-      });
+
+      // Use unique filename with timestamp to bust CDN cache
+      const timestamp = Date.now();
+      const path = `profiles/${profile.id}/profile_${timestamp}.jpg`;
+
+      // Delete old photo if it exists
+      if (profile.profile_photo_url) {
+        try {
+          const oldPath = profile.profile_photo_url.split("/wardrobe/")[1];
+          if (oldPath) {
+            await supabase.storage.from("wardrobe").remove([oldPath]);
+          }
+        } catch {
+          // Old photo cleanup failed — not critical
+        }
+      }
+
+      // Upload new photo
+      const { error: uploadError } = await supabase.storage
+        .from("wardrobe")
+        .upload(path, compressed, {
+          contentType: "image/jpeg",
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.error("Upload error:", uploadError);
+        toast("Couldn't upload photo", "error");
+        setUploadingPhoto(false);
+        return;
+      }
+
       const { data: { publicUrl } } = supabase.storage.from("wardrobe").getPublicUrl(path);
+
+      // Save new URL to database
       await supabase
         .from("profiles")
         .update({ profile_photo_url: publicUrl })
         .eq("id", profile.id);
-      setProfile({ ...profile, profile_photo_url: publicUrl + "?t=" + Date.now() });
-      toast("Photo updated!");
+
+      // Re-analyze the new photo with AI
+      toast("Photo uploaded! Analyzing...");
+      try {
+        const base64 = await fileToBase64(compressed);
+        const mediaType = getMediaType(compressed);
+
+        const res = await fetch("/api/profile/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: base64, mediaType }),
+        });
+
+        if (res.ok) {
+          const analysis: AIProfileAnalysis = await res.json();
+
+          // Update physical profile in database
+          await supabase
+            .from("profiles")
+            .update({
+              height_estimate: analysis.height_estimate,
+              body_shape: analysis.body_shape,
+              skin_tone: analysis.skin_tone,
+              skin_undertone: analysis.skin_undertone,
+              hair_length: analysis.hair_length,
+              hair_color: analysis.hair_color,
+              hair_texture: analysis.hair_texture,
+              size_estimate: analysis.size_estimate,
+            })
+            .eq("id", profile.id);
+
+          // Update local state
+          setEditValues({
+            height_estimate: analysis.height_estimate,
+            body_shape: analysis.body_shape,
+            skin_tone: analysis.skin_tone,
+            hair_length: analysis.hair_length,
+            hair_color: analysis.hair_color,
+            hair_texture: analysis.hair_texture,
+            size_estimate: analysis.size_estimate,
+          });
+
+          toast("Photo and profile updated!");
+        }
+      } catch {
+        toast("Photo saved but analysis failed — you can edit fields manually");
+      }
+
+      setProfile({ ...profile, profile_photo_url: publicUrl });
     } catch {
       toast("Couldn't upload photo", "error");
     }
@@ -172,7 +248,7 @@ export default function ProfilePage() {
           Profile
         </h1>
 
-        {/* Profile photo + name (#3) */}
+        {/* Profile photo + name */}
         <div className="card flex items-center gap-4 mb-6">
           <div className="relative">
             <div className="w-16 h-16 rounded-full bg-sage-50 flex items-center justify-center overflow-hidden">
@@ -191,7 +267,11 @@ export default function ProfilePage() {
               disabled={uploadingPhoto}
               className="absolute -bottom-1 -right-1 w-6 h-6 bg-warm-200 rounded-full flex items-center justify-center shadow-soft"
             >
-              <Camera size={12} className="text-warm-800" />
+              {uploadingPhoto ? (
+                <RefreshCw size={12} className="text-warm-800 animate-spin" />
+              ) : (
+                <Camera size={12} className="text-warm-800" />
+              )}
             </button>
           </div>
           <div>
@@ -201,6 +281,9 @@ export default function ProfilePage() {
             <p className="text-body-sm text-neutral-600 capitalize">
               {profile?.age_range || ""} · Singapore
             </p>
+            {uploadingPhoto && (
+              <p className="text-[11px] text-sage-600 mt-0.5">Updating photo...</p>
+            )}
           </div>
           <input
             ref={fileInputRef}
@@ -211,7 +294,7 @@ export default function ProfilePage() {
           />
         </div>
 
-        {/* Physical profile — editable (#3) */}
+        {/* Physical profile — editable */}
         <div className="card mb-6">
           <h3 className="text-body-sm font-medium text-neutral-600 mb-3">Physical profile</h3>
           <EditableRow label="Height" field="height_estimate" />
